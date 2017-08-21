@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:objectstore="http://www.mulesoft.org/schema/mule/objectstore" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+        xmlns:spring="http://www.springframework.org/schema/beans"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/objectstore http://www.mulesoft.org/schema/mule/objectstore/current/mule-objectstore.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <objectstore:config name="ObjectStore__Configuration" partition="employees" doc:name="ObjectStore: Configuration"/>
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <flow name="objectstore-store-employee-flow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/store" doc:name="HTTP"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+                id: inboundProperties.'http.query.params'.id,
+                name: inboundProperties.'http.query.params'.name,
+                lname: inboundProperties.'http.query.params'.lname,
+                age: inboundProperties.'http.query.params'.age
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <objectstore:store config-ref="ObjectStore__Configuration" key="#[message.inboundProperties.'http.query.params'.id]" value-ref="#[payload]" doc:name="Store employee"/>
+        <objectstore:all-keys config-ref="ObjectStore__Configuration" doc:name="Get all keys"/>
+        <logger message="Keys : #[payload]" level="INFO" doc:name="Log Employee Id's"/>
+        <set-payload value="Keys : #[payload]" doc:name="Show Employee Id's"/>
+    </flow>
+    <flow name="objectstore-retrieve-employee-flow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/retrieve" doc:name="HTTP"/>
+        <objectstore:retrieve config-ref="ObjectStore__Configuration" key="#[message.inboundProperties.'http.query.params'.id]" doc:name="Retrieve Employee"/>
+        <logger message="Employee: #[payload]" level="INFO" doc:name="Log Employee"/>
+        <set-payload value="Employee : #[payload]" doc:name="Show Employee"/>
+    </flow>
+</mule>
